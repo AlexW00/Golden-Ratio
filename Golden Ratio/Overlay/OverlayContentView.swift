@@ -13,6 +13,10 @@ struct OverlayContentView: View {
 
     private var chromeVisible: Bool { hovering && !state.isLocked }
 
+    /// Inset from the window edge at which the guide, dashed frame, and handles
+    /// render. Gives corner/edge handles room to sit exactly on the frame.
+    private let chromeMargin: CGFloat = 8
+
     var body: some View {
         ZStack {
             guideCanvas
@@ -54,7 +58,7 @@ struct OverlayContentView: View {
 
     private var guideCanvas: some View {
         Canvas { context, size in
-            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: chromeMargin, dy: chromeMargin)
             let path = GuideGeometry.path(for: state.type, in: rect, orientation: state.orientation)
             // Understroke so lines read on any background.
             context.stroke(path, with: .color(state.color.understroke.opacity(0.35)), lineWidth: 2.5)
@@ -84,13 +88,13 @@ struct OverlayContentView: View {
     private var frameBorder: some View {
         ZStack {
             Rectangle()
-                .inset(by: 1)
+                .inset(by: chromeMargin)
                 .stroke(
                     state.color.understroke.opacity(0.5),
                     style: StrokeStyle(lineWidth: 3, dash: [6, 4])
                 )
             Rectangle()
-                .inset(by: 1)
+                .inset(by: chromeMargin)
                 .stroke(
                     state.color.color.opacity(0.85),
                     style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
@@ -100,35 +104,28 @@ struct OverlayContentView: View {
     }
 
     private var controlStrip: some View {
-        GlassEffectContainer(spacing: 8) {
-            HStack(spacing: 8) {
-                chromeButton("trapezoid.and.line.vertical", "Flip Horizontal") {
-                    state.orientation.flipHorizontal()
-                }
-                chromeButton("trapezoid.and.line.horizontal", "Flip Vertical") {
-                    state.orientation.flipVertical()
-                }
-                chromeButton("rotate.right", "Rotate 90°") {
-                    state.orientation.rotate90()
-                }
-                chromeButton("lock", "Lock (click-through)") {
-                    state.isLocked = true
-                }
+        HStack(spacing: 8) {
+            ChromeStripButton("trapezoid.and.line.vertical", "Flip Horizontal", reduceMotion: reduceMotion) {
+                state.orientation.flipHorizontal()
+            }
+            ChromeStripButton("trapezoid.and.line.horizontal", "Flip Vertical", reduceMotion: reduceMotion) {
+                state.orientation.flipVertical()
+            }
+            ChromeStripButton("rotate.right", "Rotate 90°", reduceMotion: reduceMotion) {
+                state.orientation.rotate90()
+            }
+            ChromeStripButton("lock", "Lock (click-through)", reduceMotion: reduceMotion) {
+                state.isLocked = true
             }
         }
-    }
-
-    private func chromeButton(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 26, height: 22)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.glass)
-        .pointerStyle(.link)
-        .help(help)
-        .accessibilityLabel(help)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(
+            ZStack {
+                BehindWindowMaterial().clipShape(Capsule())
+                Capsule().strokeBorder(.white.opacity(0.15))
+            }
+        )
     }
 
     private var closeButton: some View {
@@ -137,10 +134,17 @@ struct OverlayContentView: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
                 .frame(width: 20, height: 20)
+                .background(
+                    ZStack {
+                        BehindWindowMaterial().clipShape(Circle())
+                        Circle().strokeBorder(.white.opacity(0.15))
+                    }
+                )
                 .contentShape(Circle())
         }
-        .buttonStyle(.glass)
+        .buttonStyle(HUDPressButtonStyle())
         .pointerStyle(.link)
         .help("Close Overlay")
         .accessibilityLabel("Close Overlay")
@@ -149,9 +153,15 @@ struct OverlayContentView: View {
     private var lockBadge: some View {
         Label("Locked — unlock from the menu bar", systemImage: "lock.fill")
             .font(.callout)
+            .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .glassEffect(.regular, in: Capsule())
+            .background(
+                ZStack {
+                    BehindWindowMaterial().clipShape(Capsule())
+                    Capsule().strokeBorder(.white.opacity(0.15))
+                }
+            )
             .transition(reduceMotion ? .identity : .opacity)
     }
 
@@ -166,18 +176,20 @@ struct OverlayContentView: View {
 
     private func handleGrip(_ handle: ResizeHandle) -> some View {
         let isHovered = hoveredHandle == handle
-        return Circle()
+        let metrics = handleMetrics(for: handle)
+        let shape = RoundedRectangle(cornerRadius: metrics.cornerRadius)
+        return shape
             .fill(state.color.color)
             .overlay(
-                Circle().strokeBorder(
+                shape.strokeBorder(
                     isHovered ? Color.white.opacity(0.9) : Color.black.opacity(0.4),
                     lineWidth: 1
                 )
             )
-            .frame(width: 12, height: 12)
-            .scaleEffect(isHovered ? 1.25 : 1.0)
+            .frame(width: metrics.size.width, height: metrics.size.height)
+            .scaleEffect(isHovered ? 1.15 : 1.0)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
-            .contentShape(Circle().inset(by: -10))  // generous hit area
+            .contentShape(shape.inset(by: -8))  // generous hit area
             .onHover { inside in
                 if inside {
                     hoveredHandle = handle
@@ -187,6 +199,19 @@ struct OverlayContentView: View {
             }
             .pointerStyle(.frameResize(position: frameResizePosition(for: handle)))
             .gesture(resizeGesture(handle))
+    }
+
+    /// Per-axis handle geometry: corners are rounded squares that sit on the
+    /// frame corner; edges are elongated pills oriented along their edge.
+    private func handleMetrics(for handle: ResizeHandle) -> (size: CGSize, cornerRadius: CGFloat) {
+        switch handle {
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            return (CGSize(width: 13, height: 13), 3.5)
+        case .top, .bottom:
+            return (CGSize(width: 26, height: 9), 4.5)
+        case .left, .right:
+            return (CGSize(width: 9, height: 26), 4.5)
+        }
     }
 
     private func frameResizePosition(for handle: ResizeHandle) -> FrameResizePosition {
@@ -204,14 +229,15 @@ struct OverlayContentView: View {
 
     private func position(of handle: ResizeHandle, in size: CGSize) -> CGPoint {
         let midX = size.width / 2, midY = size.height / 2
-        let maxX = size.width - 7, maxY = size.height - 7
+        let minX = chromeMargin, minY = chromeMargin
+        let maxX = size.width - chromeMargin, maxY = size.height - chromeMargin
         switch handle {
-        case .topLeft: return CGPoint(x: 7, y: 7)
-        case .top: return CGPoint(x: midX, y: 7)
-        case .topRight: return CGPoint(x: maxX, y: 7)
-        case .left: return CGPoint(x: 7, y: midY)
+        case .topLeft: return CGPoint(x: minX, y: minY)
+        case .top: return CGPoint(x: midX, y: minY)
+        case .topRight: return CGPoint(x: maxX, y: minY)
+        case .left: return CGPoint(x: minX, y: midY)
         case .right: return CGPoint(x: maxX, y: midY)
-        case .bottomLeft: return CGPoint(x: 7, y: maxY)
+        case .bottomLeft: return CGPoint(x: minX, y: maxY)
         case .bottom: return CGPoint(x: midX, y: maxY)
         case .bottomRight: return CGPoint(x: maxX, y: maxY)
         }
@@ -258,5 +284,55 @@ struct OverlayContentView: View {
                 panel.setFrame(f, display: true)
             }
             .onEnded { _ in dragStart = nil }
+    }
+}
+
+// MARK: - Chrome button styling
+
+/// Borderless HUD strip button: white glyph on the shared material capsule,
+/// with a circular hover highlight behind the icon (instant in, ease-out out)
+/// and a subtle pressed scale.
+private struct ChromeStripButton: View {
+    let symbol: String
+    let help: String
+    let reduceMotion: Bool
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    init(_ symbol: String, _ help: String, reduceMotion: Bool, action: @escaping () -> Void) {
+        self.symbol = symbol
+        self.help = help
+        self.reduceMotion = reduceMotion
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(width: 26, height: 22)
+                .background(
+                    Circle().fill(.white.opacity(hovering ? 0.15 : 0))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(HUDPressButtonStyle())
+        .onHover { hovering = $0 }
+        // Instant highlight in, 0.12s ease-out fade out; nil under Reduce Motion.
+        .animation(reduceMotion ? nil : (hovering ? nil : .easeOut(duration: 0.12)), value: hovering)
+        .pointerStyle(.link)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+}
+
+/// Borderless button style that applies only a pressed scale — no system
+/// chrome, so the surrounding HUD material shows through.
+private struct HUDPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
     }
 }
