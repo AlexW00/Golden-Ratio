@@ -26,6 +26,14 @@ final class OverlayPanel: NSPanel {
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    // Bypass AppKit's default frame constraint, which clamps a window's top
+    // edge to stay below the menu bar. This overlay is an alignment guide
+    // that must be draggable anywhere on screen, including over/under the
+    // menu bar area.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }
 
 /// Hosting view that responds to the first click even though the panel
