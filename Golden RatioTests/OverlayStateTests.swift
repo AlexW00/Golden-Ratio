@@ -4,17 +4,6 @@ import Foundation
 
 @MainActor
 struct OverlayStateTests {
-    /// Runs `body` with a private, empty UserDefaults suite and removes its
-    /// persistent domain afterwards so tests don't leak plists. Swift Testing
-    /// has no per-test teardown for value-type suites, so cleanup lives here.
-    private func withFreshDefaults(_ body: (UserDefaults) -> Void) {
-        let name = "OverlayStateTests-\(UUID().uuidString)"
-        let d = UserDefaults(suiteName: name)!
-        d.removePersistentDomain(forName: name)
-        defer { d.removePersistentDomain(forName: name) }
-        body(d)
-    }
-
     @Test func defaultsAreSpecCompliant() {
         withFreshDefaults { d in
             let s = OverlayState(defaults: d)
@@ -62,6 +51,24 @@ struct OverlayStateTests {
             s.isLocked = true
             s.isVisible = false
             #expect(s.isLocked == false)  // re-showing must give recoverable chrome
+        }
+    }
+
+    @Test func toggleActivatesSwitchesAndHides() {
+        withFreshDefaults { d in
+            let s = OverlayState(defaults: d)
+            // Activate: hidden → shows the tapped type.
+            s.toggle(.goldenSpiral)
+            #expect(s.isVisible == true)
+            #expect(s.type == .goldenSpiral)
+            // Switch: tapping another type selects it and stays visible.
+            s.toggle(.diagonals)
+            #expect(s.isVisible == true)
+            #expect(s.type == .diagonals)
+            // Hide: tapping the active type hides; type stays put.
+            s.toggle(.diagonals)
+            #expect(s.isVisible == false)
+            #expect(s.type == .diagonals)
         }
     }
 }

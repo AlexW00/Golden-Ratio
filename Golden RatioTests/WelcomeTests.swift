@@ -3,17 +3,6 @@ import Foundation
 @testable import Golden_Ratio
 
 struct WelcomeTests {
-    /// Runs `body` with a private, empty UserDefaults suite and removes its
-    /// persistent domain afterwards so tests don't leak plists — mirrors the
-    /// `withFreshDefaults` pattern in OverlayStateTests.
-    private func withFreshDefaults(_ body: (UserDefaults) -> Void) {
-        let name = "WelcomeTests-\(UUID().uuidString)"
-        let d = UserDefaults(suiteName: name)!
-        d.removePersistentDomain(forName: name)
-        defer { d.removePersistentDomain(forName: name) }
-        body(d)
-    }
-
     @Test func firstLaunchIsConsumedExactlyOnce() {
         withFreshDefaults { d in
             // Fresh container: the very first call reports "show".

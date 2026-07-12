@@ -71,6 +71,17 @@ final class OverlayState {
         }
     }
 
+    /// Menu-tile semantics: tapping the active type hides the overlay;
+    /// tapping any other type selects it and shows.
+    func toggle(_ newType: OverlayType) {
+        if isVisible && type == newType {
+            isVisible = false
+        } else {
+            type = newType
+            isVisible = true
+        }
+    }
+
     private func save() {
         let snap = Snapshot(type: type, color: color, orientation: orientation, isVisible: isVisible)
         if let data = try? JSONEncoder().encode(snap) {

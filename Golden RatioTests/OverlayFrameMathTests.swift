@@ -147,6 +147,25 @@ struct OverlayFrameMathTests {
         #expect(abs(f.midY - initial.midY) < 1e-6)   // 250
     }
 
+    // MARK: - On-screen predicate
+
+    @Test func intersectsAnyTrueWhenOverlappingAScreen() {
+        let screens = [
+            CGRect(x: 0, y: 0, width: 1920, height: 1080),
+            CGRect(x: 1920, y: 0, width: 1920, height: 1080),
+        ]
+        #expect(OverlayFrameMath.intersectsAny(CGRect(x: 100, y: 100, width: 400, height: 300), of: screens))
+    }
+
+    @Test func intersectsAnyFalseWhenFullyOffscreen() {
+        let screens = [CGRect(x: 0, y: 0, width: 1920, height: 1080)]
+        #expect(OverlayFrameMath.intersectsAny(CGRect(x: 5000, y: 5000, width: 400, height: 300), of: screens) == false)
+    }
+
+    @Test func intersectsAnyFalseForEmptyList() {
+        #expect(OverlayFrameMath.intersectsAny(CGRect(x: 0, y: 0, width: 10, height: 10), of: []) == false)
+    }
+
     // 6. Empty options must be byte-identical to the 3-arg form (no regression).
     @Test func emptyOptionsMatchesLegacyBehavior() {
         for handle in ResizeHandle.allCases {

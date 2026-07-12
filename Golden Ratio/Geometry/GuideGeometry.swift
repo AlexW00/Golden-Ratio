@@ -21,7 +21,7 @@ nonisolated enum GuideGeometry {
         case .centerCross:
             raw = centerCross(in: rect)
         }
-        return raw.applying(orientation.transform(in: rect))
+        return orientation == .identity ? raw : raw.applying(orientation.transform(in: rect))
     }
 
     // MARK: - Builders

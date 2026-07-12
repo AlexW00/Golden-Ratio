@@ -142,6 +142,12 @@ nonisolated enum OverlayFrameMath {
         return f
     }
 
+    /// True if `frame` intersects any of `visibleFrames` (e.g. every screen's
+    /// visible frame). Used to decide whether a restored overlay is on-screen.
+    static func intersectsAny(_ frame: CGRect, of visibleFrames: [CGRect]) -> Bool {
+        visibleFrames.contains { $0.intersects(frame) }
+    }
+
     /// Returns `frame` adjusted to lie fully inside `visible`, shrinking if needed.
     static func clamped(_ frame: CGRect, to visible: CGRect) -> CGRect {
         var f = frame

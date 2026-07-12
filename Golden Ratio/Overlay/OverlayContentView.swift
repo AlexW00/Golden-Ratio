@@ -102,32 +102,25 @@ struct OverlayContentView: View {
 
     private var controlStrip: some View {
         HStack(spacing: 8) {
-            ChromeStripButton("trapezoid.and.line.vertical", "Flip Horizontal", reduceMotion: reduceMotion) {
+            ChromeStripButton("trapezoid.and.line.vertical", "Flip Horizontal") {
                 state.orientation.flipHorizontal()
             }
-            ChromeStripButton("trapezoid.and.line.horizontal", "Flip Vertical", reduceMotion: reduceMotion) {
+            ChromeStripButton("trapezoid.and.line.horizontal", "Flip Vertical") {
                 state.orientation.flipVertical()
             }
-            ChromeStripButton("rotate.right", "Rotate 90°", reduceMotion: reduceMotion) {
+            ChromeStripButton("rotate.right", "Rotate 90°") {
                 state.orientation.rotate90()
             }
-            ChromeStripButton("lock", "Lock (click-through)", reduceMotion: reduceMotion) {
+            ChromeStripButton("lock", "Lock (click-through)") {
                 state.isLocked = true
             }
-            ChromeStripButton("xmark", "Close Overlay", reduceMotion: reduceMotion) {
+            ChromeStripButton("xmark", "Close Overlay") {
                 state.isVisible = false
             }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        .background(
-            ZStack {
-                BehindWindowMaterial().clipShape(Capsule())
-                Capsule().strokeBorder(.white.opacity(0.15))
-            }
-        )
-        .colorScheme(.dark)
-        .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
+        .hudCapsule()
     }
 
     private var lockBadge: some View {
@@ -136,14 +129,7 @@ struct OverlayContentView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(
-                ZStack {
-                    BehindWindowMaterial().clipShape(Capsule())
-                    Capsule().strokeBorder(.white.opacity(0.15))
-                }
-            )
-            .colorScheme(.dark)
-            .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
+            .hudCapsule()
             .transition(reduceMotion ? .identity : .opacity)
     }
 
@@ -240,40 +226,72 @@ struct OverlayContentView: View {
         return CGSize(width: mouse.x - start.x, height: start.y - mouse.y)
     }
 
+    /// Captures the drag anchor once per gesture: the initial mouse location
+    /// and the panel frame at drag start. Returns nil until a frame exists.
+    private func beginDragIfNeeded() -> (mouse: CGPoint, frame: CGRect)? {
+        if dragStart == nil {
+            guard let frame = controller.dragStartFrame() else { return nil }
+            dragStart = (NSEvent.mouseLocation, frame)
+        }
+        return dragStart
+    }
+
     private var moveGesture: some Gesture {
         DragGesture(minimumDistance: 2, coordinateSpace: .global)
             .onChanged { _ in
-                guard let panel = controller.panel else { return }
-                if dragStart == nil { dragStart = (NSEvent.mouseLocation, panel.frame) }
-                guard let start = dragStart else { return }
-                let t = screenTranslation(since: start.mouse)
-                panel.setFrameOrigin(OverlayFrameMath.moved(from: start.frame, translation: t).origin)
+                guard let start = beginDragIfNeeded() else { return }
+                controller.move(from: start.frame, translation: screenTranslation(since: start.mouse))
             }
-            .onEnded { _ in dragStart = nil }
+            .onEnded { _ in
+                dragStart = nil
+                controller.dragEnded()
+            }
     }
 
     private func resizeGesture(_ handle: ResizeHandle) -> some Gesture {
         DragGesture(minimumDistance: 1, coordinateSpace: .global)
             .onChanged { _ in
-                guard let panel = controller.panel else { return }
-                if dragStart == nil { dragStart = (NSEvent.mouseLocation, panel.frame) }
-                guard let start = dragStart else { return }
+                guard let start = beginDragIfNeeded() else { return }
                 // Sample modifiers live so pressing/releasing mid-drag takes
                 // effect immediately (frame math is recomputed from `initial`).
                 var options: OverlayFrameMath.ResizeOptions = []
                 let mods = NSEvent.modifierFlags
                 if mods.contains(.shift) { options.insert(.preserveAspect) }
                 if mods.contains(.option) { options.insert(.fromCenter) }
-                let f = OverlayFrameMath.frame(
-                    after: handle,
+                controller.resize(
+                    handle,
+                    from: start.frame,
                     translation: screenTranslation(since: start.mouse),
-                    initial: start.frame,
                     options: options
                 )
-                panel.setFrame(f, display: true)
             }
-            .onEnded { _ in dragStart = nil }
+            .onEnded { _ in
+                dragStart = nil
+                controller.dragEnded()
+            }
     }
+}
+
+// MARK: - HUD capsule chrome
+
+private struct HUDCapsule: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    BehindWindowMaterial().clipShape(Capsule())
+                    Capsule().strokeBorder(.white.opacity(0.15))
+                }
+            )
+            .colorScheme(.dark)
+            .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
+    }
+}
+
+private extension View {
+    /// Shared HUD capsule chrome: behind-window material clipped to a capsule
+    /// with a hairline border, forced dark, with a soft drop shadow.
+    func hudCapsule() -> some View { modifier(HUDCapsule()) }
 }
 
 // MARK: - Chrome button styling
@@ -284,15 +302,14 @@ struct OverlayContentView: View {
 private struct ChromeStripButton: View {
     let symbol: String
     let help: String
-    let reduceMotion: Bool
     let action: () -> Void
 
     @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(_ symbol: String, _ help: String, reduceMotion: Bool, action: @escaping () -> Void) {
+    init(_ symbol: String, _ help: String, action: @escaping () -> Void) {
         self.symbol = symbol
         self.help = help
-        self.reduceMotion = reduceMotion
         self.action = action
     }
 
@@ -307,21 +324,12 @@ private struct ChromeStripButton: View {
                 )
                 .contentShape(Rectangle())
         }
-        .buttonStyle(HUDPressButtonStyle())
+        .buttonStyle(PressScaleButtonStyle(scale: 0.95))
         .onHover { hovering = $0 }
         // Instant highlight in, 0.12s ease-out fade out; nil under Reduce Motion.
         .animation(reduceMotion ? nil : (hovering ? nil : .easeOut(duration: 0.12)), value: hovering)
         .pointerStyle(.link)
         .help(help)
         .accessibilityLabel(help)
-    }
-}
-
-/// Borderless button style that applies only a pressed scale — no system
-/// chrome, so the surrounding HUD material shows through.
-private struct HUDPressButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
     }
 }

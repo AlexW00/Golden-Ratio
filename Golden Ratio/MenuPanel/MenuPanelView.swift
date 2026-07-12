@@ -25,12 +25,7 @@ struct MenuPanelView: View {
     private func tile(for type: OverlayType) -> some View {
         let isActive = state.isVisible && state.type == type
         return Button {
-            if isActive {
-                state.isVisible = false
-            } else {
-                state.type = type
-                state.isVisible = true
-            }
+            state.toggle(type)
         } label: {
             Canvas { context, size in
                 let rect = CGRect(origin: .zero, size: size).insetBy(dx: 6, dy: 6)
@@ -49,7 +44,7 @@ struct MenuPanelView: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(PressableButtonStyle())
+        .buttonStyle(PressScaleButtonStyle())
         .help(type.displayName)
         .accessibilityLabel(type.displayName)
     }
@@ -74,7 +69,7 @@ struct MenuPanelView: View {
                         .frame(width: 18, height: 18)
                         .contentShape(Circle().inset(by: -4))
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(PressScaleButtonStyle())
                 .help(swatch.displayName)
                 .accessibilityLabel(swatch.displayName)
             }
@@ -85,57 +80,48 @@ struct MenuPanelView: View {
 
     private var controlRow: some View {
         HStack(spacing: 4) {
-            controlButton("trapezoid.and.line.vertical", "Flip Horizontal") {
+            controlButton("trapezoid.and.line.vertical", help: "Flip Horizontal",
+                          disabled: !state.isVisible || state.isLocked) {
                 state.orientation.flipHorizontal()
             }
-            controlButton("trapezoid.and.line.horizontal", "Flip Vertical") {
+            controlButton("trapezoid.and.line.horizontal", help: "Flip Vertical",
+                          disabled: !state.isVisible || state.isLocked) {
                 state.orientation.flipVertical()
             }
-            controlButton("rotate.right", "Rotate 90°") {
+            controlButton("rotate.right", help: "Rotate 90°",
+                          disabled: !state.isVisible || state.isLocked) {
                 state.orientation.rotate90()
             }
-            Button {
+            controlButton(state.isLocked ? "lock.fill" : "lock",
+                          help: state.isLocked ? "Unlock Overlay" : "Lock (click-through)",
+                          accessibility: state.isLocked ? "Unlock Overlay" : "Lock Overlay",
+                          disabled: !state.isVisible) {
                 state.isLocked.toggle()
-            } label: {
-                Image(systemName: state.isLocked ? "lock.fill" : "lock")
-                    .frame(width: 30, height: 24)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(PressableButtonStyle())
-            .disabled(!state.isVisible)
-            .help(state.isLocked ? "Unlock Overlay" : "Lock (click-through)")
-            .accessibilityLabel(state.isLocked ? "Unlock Overlay" : "Lock Overlay")
             Spacer()
-            Button {
+            controlButton("power", help: "Quit Golden Ratio") {
                 NSApplication.shared.terminate(nil)
-            } label: {
-                Image(systemName: "power")
-                    .frame(width: 30, height: 24)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(PressableButtonStyle())
-            .help("Quit Golden Ratio")
-            .accessibilityLabel("Quit Golden Ratio")
         }
     }
 
-    private func controlButton(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {
+    /// Shared icon button for the control row. `accessibility` defaults to
+    /// `help`; `disabled` defaults to always-enabled (used by Quit).
+    private func controlButton(
+        _ symbol: String,
+        help: String,
+        accessibility: String? = nil,
+        disabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .frame(width: 30, height: 24)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(PressableButtonStyle())
-        .disabled(!state.isVisible || state.isLocked)
+        .buttonStyle(PressScaleButtonStyle())
+        .disabled(disabled)
         .help(help)
-        .accessibilityLabel(help)
-    }
-}
-
-/// Instant 0.97 press-scale; no animation on release path beyond the default.
-struct PressableButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+        .accessibilityLabel(accessibility ?? help)
     }
 }
