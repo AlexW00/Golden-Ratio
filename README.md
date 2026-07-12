@@ -1,5 +1,7 @@
 # Golden Ratio
 
+<img width="2940" height="1912" alt="SCR-20260712-twzz" src="https://github.com/user-attachments/assets/741b4464-1ef2-4e53-86e7-fc9ec32f3ee2" />
+
 A tiny macOS menu bar app that floats a composition guide over anything on your screen — and, unlike most editors' built-in overlays, lets you **rotate and flip** it.
 
 Born from a simple frustration: Photomator (and many other apps) can't rotate or mirror the golden spiral. Golden Ratio puts the guide in a floating overlay you can place over *any* app, in any of its eight orientations.
