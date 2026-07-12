@@ -126,6 +126,8 @@ struct OverlayContentView: View {
                 Capsule().strokeBorder(.white.opacity(0.15))
             }
         )
+        .colorScheme(.dark)
+        .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
     }
 
     private var closeButton: some View {
@@ -142,6 +144,8 @@ struct OverlayContentView: View {
                         Circle().strokeBorder(.white.opacity(0.15))
                     }
                 )
+                .colorScheme(.dark)
+                .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
                 .contentShape(Circle())
         }
         .buttonStyle(HUDPressButtonStyle())
@@ -162,6 +166,8 @@ struct OverlayContentView: View {
                     Capsule().strokeBorder(.white.opacity(0.15))
                 }
             )
+            .colorScheme(.dark)
+            .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
             .transition(reduceMotion ? .identity : .opacity)
     }
 
