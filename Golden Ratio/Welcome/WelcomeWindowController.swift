@@ -45,21 +45,17 @@ final class WelcomeWindowController {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(
-            contentRect: .zero,
-            styleMask: [.titled, .closable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
+        let hosting = NSHostingController(rootView: WelcomeView(dismiss: { [weak self] in
+            self?.window?.close()
+        }))
+        let window = NSWindow(contentViewController: hosting)
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         // Keep the instance alive after the user closes it so a later reopen
         // (Finder/Dock) can reuse it instead of dereferencing a freed window.
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: WelcomeView(dismiss: { [weak window] in
-            window?.close()
-        }))
         self.window = window
         return window
     }
