@@ -20,11 +20,7 @@ struct Golden_RatioApp: App {
 
     var body: some Scene {
         MenuBarExtra("Golden Ratio", systemImage: "hurricane") {
-            // Temporary controls; replaced by MenuPanelView in Task 7.
-            Button(model.overlayState.isVisible ? "Hide Overlay" : "Show Overlay") {
-                model.overlayState.isVisible.toggle()
-            }
-            .padding()
+            MenuPanelView(state: model.overlayState)
         }
         .menuBarExtraStyle(.window)
     }
