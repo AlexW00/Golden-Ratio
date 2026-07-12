@@ -29,7 +29,7 @@ final class OverlayWindowController {
 
     private func apply() {
         if state.isVisible {
-            show()
+            if panel?.isVisible != true { show() }
         } else {
             panel?.orderOut(nil)
         }
@@ -38,9 +38,12 @@ final class OverlayWindowController {
 
     private func show() {
         let panel = self.panel ?? makePanel()
-        if let screen = panel.screen ?? NSScreen.main {
-            let clamped = OverlayFrameMath.clamped(panel.frame, to: screen.visibleFrame)
-            panel.setFrame(clamped, display: false)
+        // Clamp only when the restored frame lies entirely off every screen —
+        // otherwise leave a carefully placed (edge-straddling or multi-display)
+        // overlay exactly where the user put it.
+        let onScreen = NSScreen.screens.contains { $0.visibleFrame.intersects(panel.frame) }
+        if !onScreen, let screen = panel.screen ?? NSScreen.main {
+            panel.setFrame(OverlayFrameMath.clamped(panel.frame, to: screen.visibleFrame), display: false)
         }
         panel.orderFrontRegardless()
     }

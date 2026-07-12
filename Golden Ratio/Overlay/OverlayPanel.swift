@@ -33,3 +33,32 @@ final class OverlayPanel: NSPanel {
 final class OverlayHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
+
+/// Reports mouse enter/exit even while the app is inactive — SwiftUI's
+/// .onHover relies on tracking areas that may not fire for a non-activating
+/// panel in a background app.
+struct ActiveAlwaysHoverTracker: NSViewRepresentable {
+    var onChange: (Bool) -> Void
+
+    func makeNSView(context: Context) -> TrackerView { TrackerView(onChange: onChange) }
+    func updateNSView(_ view: TrackerView, context: Context) { view.onChange = onChange }
+
+    final class TrackerView: NSView {
+        var onChange: (Bool) -> Void
+        init(onChange: @escaping (Bool) -> Void) {
+            self.onChange = onChange
+            super.init(frame: .zero)
+        }
+        required init?(coder: NSCoder) { fatalError() }
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach(removeTrackingArea)
+            addTrackingArea(NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self, userInfo: nil))
+        }
+        override func mouseEntered(with event: NSEvent) { onChange(true) }
+        override func mouseExited(with event: NSEvent) { onChange(false) }
+    }
+}

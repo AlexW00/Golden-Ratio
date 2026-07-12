@@ -62,4 +62,14 @@ struct OverlayFrameMathTests {
         let f = OverlayFrameMath.clamped(huge, to: visible)
         #expect(f.width <= 1920 && f.height <= 1080)
     }
+
+    @Test func clampEnforcesMinSize() {
+        let visible = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let tiny = CGRect(x: 0, y: 0, width: 50, height: 50)
+        let f = OverlayFrameMath.clamped(tiny, to: visible)
+        #expect(f.width >= OverlayFrameMath.minSize)
+        #expect(f.height >= OverlayFrameMath.minSize)
+        // Still fully inside:
+        #expect(f.minX >= 0 && f.minY >= 0 && f.maxX <= 1920 && f.maxY <= 1080)
+    }
 }

@@ -56,8 +56,11 @@ nonisolated enum OverlayFrameMath {
     /// Returns `frame` adjusted to lie fully inside `visible`, shrinking if needed.
     static func clamped(_ frame: CGRect, to visible: CGRect) -> CGRect {
         var f = frame
-        f.size.width = min(f.width, visible.width)
-        f.size.height = min(f.height, visible.height)
+        // Enforce minSize against corrupt/legacy autosave, but never exceed the
+        // screen (a screen smaller than minSize wins, to keep the fully-inside
+        // guarantee).
+        f.size.width = min(max(f.width, minSize), visible.width)
+        f.size.height = min(max(f.height, minSize), visible.height)
         f.origin.x = min(max(f.origin.x, visible.minX), visible.maxX - f.width)
         f.origin.y = min(max(f.origin.y, visible.minY), visible.maxY - f.height)
         return f

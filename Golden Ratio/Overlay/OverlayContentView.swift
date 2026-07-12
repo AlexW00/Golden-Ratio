@@ -7,6 +7,7 @@ struct OverlayContentView: View {
     @State private var hovering = false
     @State private var dragStart: (mouse: CGPoint, frame: CGRect)?
     @State private var showLockBadge = false
+    @State private var badgeTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var chromeVisible: Bool { hovering && !state.isLocked }
@@ -24,7 +25,7 @@ struct OverlayContentView: View {
             if showLockBadge { lockBadge }
         }
         .contentShape(Rectangle())
-        .onHover { hovering = $0 }
+        .background(ActiveAlwaysHoverTracker { hovering = $0 })
         .gesture(moveGesture)
         .onChange(of: state.isLocked) { _, locked in
             guard locked else { return }
@@ -32,8 +33,10 @@ struct OverlayContentView: View {
             withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
                 showLockBadge = true
             }
-            Task {
+            badgeTask?.cancel()
+            badgeTask = Task {
                 try? await Task.sleep(for: .seconds(1.4))
+                if Task.isCancelled { return }
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
                     showLockBadge = false
                 }
@@ -49,7 +52,7 @@ struct OverlayContentView: View {
             let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
             let path = GuideGeometry.path(for: state.type, in: rect, orientation: state.orientation)
             // Understroke so lines read on any background.
-            context.stroke(path, with: .color(.black.opacity(0.35)), lineWidth: 2.5)
+            context.stroke(path, with: .color(state.color.understroke.opacity(0.35)), lineWidth: 2.5)
             context.stroke(path, with: .color(state.color.color.opacity(0.9)), lineWidth: 1.5)
         }
     }
@@ -150,14 +153,14 @@ struct OverlayContentView: View {
 
     private func position(of handle: ResizeHandle, in size: CGSize) -> CGPoint {
         let midX = size.width / 2, midY = size.height / 2
-        let maxX = size.width - 1, maxY = size.height - 1
+        let maxX = size.width - 6, maxY = size.height - 6
         switch handle {
-        case .topLeft: return CGPoint(x: 1, y: 1)
-        case .top: return CGPoint(x: midX, y: 1)
-        case .topRight: return CGPoint(x: maxX, y: 1)
-        case .left: return CGPoint(x: 1, y: midY)
+        case .topLeft: return CGPoint(x: 6, y: 6)
+        case .top: return CGPoint(x: midX, y: 6)
+        case .topRight: return CGPoint(x: maxX, y: 6)
+        case .left: return CGPoint(x: 6, y: midY)
         case .right: return CGPoint(x: maxX, y: midY)
-        case .bottomLeft: return CGPoint(x: 1, y: maxY)
+        case .bottomLeft: return CGPoint(x: 6, y: maxY)
         case .bottom: return CGPoint(x: midX, y: maxY)
         case .bottomRight: return CGPoint(x: maxX, y: maxY)
         }

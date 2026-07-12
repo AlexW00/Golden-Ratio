@@ -18,6 +18,11 @@ nonisolated enum GuideColor: String, Codable, CaseIterable, Identifiable, Sendab
     }
 
     var displayName: String { rawValue.capitalized }
+
+    /// Contrast color drawn under the guide stroke so it reads on any
+    /// background — including the black swatch, whose stroke needs a white
+    /// understroke instead of the default black.
+    var understroke: Color { self == .black ? .white : .black }
 }
 
 /// Single source of truth shared by the menu panel and the overlay window.
@@ -27,7 +32,15 @@ final class OverlayState {
     var type: OverlayType { didSet { save() } }
     var color: GuideColor { didSet { save() } }
     var orientation: Orientation { didSet { save() } }
-    var isVisible: Bool { didSet { save() } }
+    var isVisible: Bool {
+        didSet {
+            // Hiding always drops the lock: a re-shown locked overlay would be a
+            // chrome-less click-through surface with no way to recover it.
+            // (isLocked has no didSet, so this can't recurse.)
+            if !isVisible { isLocked = false }
+            save()
+        }
+    }
     /// Not persisted as `true`: a relaunch always starts unlocked so the user
     /// is never stranded with an untouchable overlay.
     var isLocked: Bool = false
