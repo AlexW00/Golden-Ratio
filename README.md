@@ -47,3 +47,7 @@ Or headless: `xcodebuild -scheme "Golden Ratio" -configuration Release build`
 ## License
 
 [MIT](LICENSE)
+
+## Credits
+
+If you need something more advanced, use [Goldie](https://amicoapps.com/app/goldie/) (paid).
