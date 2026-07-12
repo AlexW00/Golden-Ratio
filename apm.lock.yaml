@@ -1,7 +1,17 @@
 lockfile_version: '1'
-generated_at: '2026-07-12T09:55:42.364859+00:00'
+generated_at: '2026-07-12T10:06:47.893144+00:00'
 apm_version: 0.24.0
 dependencies:
+- repo_url: AlexW00/apm
+  name: design-eng
+  host: github.com
+  resolved_commit: f06e9b273ab1eda3d20ab93bf3888f605ef69f58
+  version: 0.1.0
+  virtual_path: packages/design-eng
+  is_virtual: true
+  package_type: apm_package
+  content_hash: sha256:8856286cd01a3d03b583393cc5df49e7e81cd316f4ab55f88626958fa1189541
+  declared_license: MIT
 - repo_url: AlexW00/apm
   name: ios-core
   host: github.com
@@ -71,6 +81,32 @@ dependencies:
     .claude/skills/widgetkit/evals/evals.json: sha256:f774ae36d263b560ff89d0c2b30f672a2a0ad09ca714cb3f39981c75d96fbfea
     .claude/skills/widgetkit/references/widgetkit-advanced.md: sha256:ed93f51020e6b3b7ad9c09da4decb640285dd6bebb6e67fd66634eb3fb1b8743
   content_hash: sha256:001b28f00e0d314f339f8c1e80db02d7dd3a1d4dbb9fbf0f8ef47681bcb495dd
+- repo_url: emilkowalski/skills
+  name: skills
+  host: github.com
+  resolved_commit: 220e8607c90b17337d210125777b7b695f26c221
+  resolved_ref: 220e8607c90b17337d210125777b7b695f26c221
+  version: unknown
+  depth: 2
+  resolved_by: AlexW00/apm
+  package_type: skill_bundle
+  deployed_files:
+  - .claude/skills/animation-vocabulary
+  - .claude/skills/animation-vocabulary/SKILL.md
+  - .claude/skills/apple-design
+  - .claude/skills/apple-design/SKILL.md
+  - .claude/skills/emil-design-eng
+  - .claude/skills/emil-design-eng/SKILL.md
+  - .claude/skills/review-animations
+  - .claude/skills/review-animations/SKILL.md
+  - .claude/skills/review-animations/STANDARDS.md
+  deployed_file_hashes:
+    .claude/skills/animation-vocabulary/SKILL.md: sha256:d718b48fe3c7898804d588f050a2e266d82c9f5ef51da256c8cb8b5951527757
+    .claude/skills/apple-design/SKILL.md: sha256:11840b24a11d7f94f39c6aaab074750ae4e4de4ef54ee4b1dd97e16ebd485e61
+    .claude/skills/emil-design-eng/SKILL.md: sha256:433b5a239cda18e0576e4e558532e7e53512e21fafe5b85db4894c28ec399b72
+    .claude/skills/review-animations/SKILL.md: sha256:da7ffae44f21bc8c5104567256f6c66e5dac69fd7118db639ee3d30e0f9d6ba9
+    .claude/skills/review-animations/STANDARDS.md: sha256:72b1235ea4d7cf64123719d569c0726129b3772713d480369c28f6a5f9f7278c
+  content_hash: sha256:5181533e95f02c8e696da8bcd5f5fcc2b28610afd2458ece78e76aeaaf2a24af
 - repo_url: github/awesome-copilot
   name: awesome-copilot
   host: github.com
