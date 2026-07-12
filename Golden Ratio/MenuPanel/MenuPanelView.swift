@@ -104,6 +104,7 @@ struct MenuPanelView: View {
             .buttonStyle(PressableButtonStyle())
             .disabled(!state.isVisible)
             .help(state.isLocked ? "Unlock Overlay" : "Lock (click-through)")
+            .accessibilityLabel(state.isLocked ? "Unlock Overlay" : "Lock Overlay")
             Spacer()
             Button {
                 NSApplication.shared.terminate(nil)
@@ -114,6 +115,7 @@ struct MenuPanelView: View {
             }
             .buttonStyle(PressableButtonStyle())
             .help("Quit Golden Ratio")
+            .accessibilityLabel("Quit Golden Ratio")
         }
     }
 
@@ -126,6 +128,7 @@ struct MenuPanelView: View {
         .buttonStyle(PressableButtonStyle())
         .disabled(!state.isVisible || state.isLocked)
         .help(help)
+        .accessibilityLabel(help)
     }
 }
 

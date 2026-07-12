@@ -29,10 +29,14 @@ struct OverlayContentView: View {
         .onChange(of: state.isLocked) { _, locked in
             guard locked else { return }
             hovering = false
-            showLockBadge = true
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
+                showLockBadge = true
+            }
             Task {
                 try? await Task.sleep(for: .seconds(1.4))
-                showLockBadge = false
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                    showLockBadge = false
+                }
             }
         }
         .ignoresSafeArea()
@@ -99,6 +103,7 @@ struct OverlayContentView: View {
         }
         .buttonStyle(.borderless)
         .help(help)
+        .accessibilityLabel(help)
     }
 
     private var closeButton: some View {
@@ -113,6 +118,7 @@ struct OverlayContentView: View {
         .buttonStyle(.borderless)
         .glassEffect(.regular, in: Circle())
         .help("Close Overlay")
+        .accessibilityLabel("Close Overlay")
     }
 
     private var lockBadge: some View {
