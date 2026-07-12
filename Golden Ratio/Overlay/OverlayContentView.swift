@@ -282,10 +282,17 @@ struct OverlayContentView: View {
                 guard let panel = controller.panel else { return }
                 if dragStart == nil { dragStart = (NSEvent.mouseLocation, panel.frame) }
                 guard let start = dragStart else { return }
+                // Sample modifiers live so pressing/releasing mid-drag takes
+                // effect immediately (frame math is recomputed from `initial`).
+                var options: OverlayFrameMath.ResizeOptions = []
+                let mods = NSEvent.modifierFlags
+                if mods.contains(.shift) { options.insert(.preserveAspect) }
+                if mods.contains(.option) { options.insert(.fromCenter) }
                 let f = OverlayFrameMath.frame(
                     after: handle,
                     translation: screenTranslation(since: start.mouse),
-                    initial: start.frame
+                    initial: start.frame,
+                    options: options
                 )
                 panel.setFrame(f, display: true)
             }

@@ -72,4 +72,88 @@ struct OverlayFrameMathTests {
         // Still fully inside:
         #expect(f.minX >= 0 && f.minY >= 0 && f.maxX <= 1920 && f.maxY <= 1080)
     }
+
+    // MARK: - Wave 3c: modifier-key resize (aspect / from-center)
+
+    /// initial is 400x300 → aspect 4:3.
+
+    // 1. Shift + right edge dragged +60: width authoritative (460), height derived
+    //    460 * 3/4 = 345, other axis (y) centered on initial midY, minX unchanged.
+    @Test func shiftRightEdgePreservesAspectCenteredOnMidY() {
+        let f = OverlayFrameMath.frame(
+            after: .right, translation: CGSize(width: 60, height: 0),
+            initial: initial, options: [.preserveAspect]
+        )
+        #expect(abs(f.width - 460) < 1e-6)
+        #expect(abs(f.height - 345) < 1e-6)
+        #expect(abs(f.midY - initial.midY) < 1e-6)   // 250 → minY 77.5
+        #expect(abs(f.minY - 77.5) < 1e-6)
+        #expect(abs(f.minX - initial.minX) < 1e-6)    // 100 (left anchored)
+    }
+
+    // 2. Shift + bottomRight corner (+80, +30 view-space): tentative (480 x 330).
+    //    relW = 80/400 = 0.2 > relH = 30/300 = 0.1 → width dominates.
+    //    width 480, height 480*3/4 = 360. Opposite corner (minX 100, maxY 400) fixed.
+    @Test func shiftBottomRightCornerWidthDominates() {
+        let f = OverlayFrameMath.frame(
+            after: .bottomRight, translation: CGSize(width: 80, height: 30),
+            initial: initial, options: [.preserveAspect]
+        )
+        #expect(abs(f.width - 480) < 1e-6)
+        #expect(abs(f.height - 360) < 1e-6)
+        #expect(abs(f.minX - initial.minX) < 1e-6)   // 100 fixed
+        #expect(abs(f.maxY - initial.maxY) < 1e-6)   // 400 fixed
+        #expect(abs(f.minY - 40) < 1e-6)             // 400 - 360
+    }
+
+    // 3. Shift + right edge dragged −1000: width clamps to minSize 120, derived
+    //    height 90 < minSize → scale pair up so height = 120 (smaller dim),
+    //    width = 160 (= 120 * 4/3). Ratio preserved; left edge (minX) stays anchored
+    //    per the edge rule (NOT maxX — the brief sketch is corrected here).
+    @Test func shiftRightEdgeMinSizeScalesPairUp() {
+        let f = OverlayFrameMath.frame(
+            after: .right, translation: CGSize(width: -1000, height: 0),
+            initial: initial, options: [.preserveAspect]
+        )
+        #expect(abs(f.width - 160) < 1e-6)
+        #expect(abs(f.height - 120) < 1e-6)
+        #expect(abs(f.minX - initial.minX) < 1e-6)   // 100 (left anchored)
+        #expect(abs(f.midY - initial.midY) < 1e-6)   // centered on midY
+    }
+
+    // 4. Option + right edge +60: plain resize (width 460, height 300) recentered
+    //    on the initial frame's center — size unchanged, center fixed.
+    @Test func optionRightEdgeResizesFromCenter() {
+        let f = OverlayFrameMath.frame(
+            after: .right, translation: CGSize(width: 60, height: 0),
+            initial: initial, options: [.fromCenter]
+        )
+        #expect(abs(f.width - 460) < 1e-6)
+        #expect(abs(f.height - 300) < 1e-6)
+        #expect(abs(f.midX - initial.midX) < 1e-6)   // 300
+        #expect(abs(f.midY - initial.midY) < 1e-6)   // 250
+    }
+
+    // 5. Option + Shift + right edge +60: aspect computes the size (460 x 345),
+    //    from-center places it — center stays at the initial center.
+    @Test func optionShiftRightEdgeAspectFromCenter() {
+        let f = OverlayFrameMath.frame(
+            after: .right, translation: CGSize(width: 60, height: 0),
+            initial: initial, options: [.preserveAspect, .fromCenter]
+        )
+        #expect(abs(f.width - 460) < 1e-6)
+        #expect(abs(f.height - 345) < 1e-6)
+        #expect(abs(f.midX - initial.midX) < 1e-6)   // 300
+        #expect(abs(f.midY - initial.midY) < 1e-6)   // 250
+    }
+
+    // 6. Empty options must be byte-identical to the 3-arg form (no regression).
+    @Test func emptyOptionsMatchesLegacyBehavior() {
+        for handle in ResizeHandle.allCases {
+            let t = CGSize(width: 37, height: -21)
+            let legacy = OverlayFrameMath.frame(after: handle, translation: t, initial: initial)
+            let withOpts = OverlayFrameMath.frame(after: handle, translation: t, initial: initial, options: [])
+            #expect(legacy == withOpts)
+        }
+    }
 }
