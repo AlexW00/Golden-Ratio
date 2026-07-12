@@ -75,9 +75,6 @@ struct OverlayContentView: View {
                 controlStrip
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 10)
-                closeButton
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(8)
                 handles(in: geo.size)
             }
         }
@@ -117,6 +114,9 @@ struct OverlayContentView: View {
             ChromeStripButton("lock", "Lock (click-through)", reduceMotion: reduceMotion) {
                 state.isLocked = true
             }
+            ChromeStripButton("xmark", "Close Overlay", reduceMotion: reduceMotion) {
+                state.isVisible = false
+            }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -128,30 +128,6 @@ struct OverlayContentView: View {
         )
         .colorScheme(.dark)
         .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
-    }
-
-    private var closeButton: some View {
-        Button {
-            state.isVisible = false
-        } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(.white.opacity(0.9))
-                .frame(width: 20, height: 20)
-                .background(
-                    ZStack {
-                        BehindWindowMaterial().clipShape(Circle())
-                        Circle().strokeBorder(.white.opacity(0.15))
-                    }
-                )
-                .colorScheme(.dark)
-                .shadow(color: .black.opacity(0.25), radius: 6, y: 2)
-                .contentShape(Circle())
-        }
-        .buttonStyle(HUDPressButtonStyle())
-        .pointerStyle(.link)
-        .help("Close Overlay")
-        .accessibilityLabel("Close Overlay")
     }
 
     private var lockBadge: some View {
