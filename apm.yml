@@ -1,0 +1,9 @@
+name: golden-ratio
+version: 0.1.0
+targets: [claude]
+includes: auto      # deploys the project's own .apm/skills/ LAST (local wins collisions)
+dependencies:
+  apm:
+    - AlexW00/apm/packages/ios-core
+    - AlexW00/apm/packages/ios-ship
+  mcp: []
