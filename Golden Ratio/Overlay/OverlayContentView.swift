@@ -5,6 +5,7 @@ struct OverlayContentView: View {
     unowned let controller: OverlayWindowController
 
     @State private var hovering = false
+    @State private var hoveredHandle: ResizeHandle?
     @State private var dragStart: (mouse: CGPoint, frame: CGRect)?
     @State private var showLockBadge = false
     @State private var badgeTask: Task<Void, Never>?
@@ -25,11 +26,15 @@ struct OverlayContentView: View {
             if showLockBadge { lockBadge }
         }
         .contentShape(Rectangle())
+        // Grab cursor only while the chrome is showing; default when the
+        // overlay is locked (click-through) or the pointer is elsewhere.
+        .pointerStyle(chromeVisible ? .grabIdle : .default)
         .background(ActiveAlwaysHoverTracker { hovering = $0 })
         .gesture(moveGesture)
         .onChange(of: state.isLocked) { _, locked in
             guard locked else { return }
             hovering = false
+            hoveredHandle = nil
             withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
                 showLockBadge = true
             }
@@ -62,11 +67,7 @@ struct OverlayContentView: View {
     private var chrome: some View {
         GeometryReader { geo in
             ZStack {
-                Rectangle()
-                    .strokeBorder(
-                        state.color.color.opacity(0.5),
-                        style: StrokeStyle(lineWidth: 1, dash: [4, 4])
-                    )
+                frameBorder
                 controlStrip
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 10)
@@ -78,23 +79,43 @@ struct OverlayContentView: View {
         }
     }
 
+    /// Two-pass dashed border (understroke + color), matching the guide
+    /// drawing style so the frame reads on any background.
+    private var frameBorder: some View {
+        ZStack {
+            Rectangle()
+                .inset(by: 1)
+                .stroke(
+                    state.color.understroke.opacity(0.5),
+                    style: StrokeStyle(lineWidth: 3, dash: [6, 4])
+                )
+            Rectangle()
+                .inset(by: 1)
+                .stroke(
+                    state.color.color.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                )
+        }
+        .allowsHitTesting(false)
+    }
+
     private var controlStrip: some View {
-        HStack(spacing: 2) {
-            chromeButton("trapezoid.and.line.vertical", "Flip Horizontal") {
-                state.orientation.flipHorizontal()
-            }
-            chromeButton("trapezoid.and.line.horizontal", "Flip Vertical") {
-                state.orientation.flipVertical()
-            }
-            chromeButton("rotate.right", "Rotate 90°") {
-                state.orientation.rotate90()
-            }
-            chromeButton("lock", "Lock (click-through)") {
-                state.isLocked = true
+        GlassEffectContainer(spacing: 8) {
+            HStack(spacing: 8) {
+                chromeButton("trapezoid.and.line.vertical", "Flip Horizontal") {
+                    state.orientation.flipHorizontal()
+                }
+                chromeButton("trapezoid.and.line.horizontal", "Flip Vertical") {
+                    state.orientation.flipVertical()
+                }
+                chromeButton("rotate.right", "Rotate 90°") {
+                    state.orientation.rotate90()
+                }
+                chromeButton("lock", "Lock (click-through)") {
+                    state.isLocked = true
+                }
             }
         }
-        .padding(4)
-        .glassEffect(.regular, in: Capsule())
     }
 
     private func chromeButton(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {
@@ -104,7 +125,8 @@ struct OverlayContentView: View {
                 .frame(width: 26, height: 22)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.glass)
+        .pointerStyle(.link)
         .help(help)
         .accessibilityLabel(help)
     }
@@ -118,8 +140,8 @@ struct OverlayContentView: View {
                 .frame(width: 20, height: 20)
                 .contentShape(Circle())
         }
-        .buttonStyle(.borderless)
-        .glassEffect(.regular, in: Circle())
+        .buttonStyle(.glass)
+        .pointerStyle(.link)
         .help("Close Overlay")
         .accessibilityLabel("Close Overlay")
     }
@@ -143,24 +165,53 @@ struct OverlayContentView: View {
     }
 
     private func handleGrip(_ handle: ResizeHandle) -> some View {
-        Circle()
+        let isHovered = hoveredHandle == handle
+        return Circle()
             .fill(state.color.color)
-            .overlay(Circle().strokeBorder(.black.opacity(0.4), lineWidth: 1))
-            .frame(width: 10, height: 10)
-            .contentShape(Circle().inset(by: -8))  // generous hit area
+            .overlay(
+                Circle().strokeBorder(
+                    isHovered ? Color.white.opacity(0.9) : Color.black.opacity(0.4),
+                    lineWidth: 1
+                )
+            )
+            .frame(width: 12, height: 12)
+            .scaleEffect(isHovered ? 1.25 : 1.0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+            .contentShape(Circle().inset(by: -10))  // generous hit area
+            .onHover { inside in
+                if inside {
+                    hoveredHandle = handle
+                } else if hoveredHandle == handle {
+                    hoveredHandle = nil
+                }
+            }
+            .pointerStyle(.frameResize(position: frameResizePosition(for: handle)))
             .gesture(resizeGesture(handle))
+    }
+
+    private func frameResizePosition(for handle: ResizeHandle) -> FrameResizePosition {
+        switch handle {
+        case .topLeft: .topLeading
+        case .top: .top
+        case .topRight: .topTrailing
+        case .left: .leading
+        case .right: .trailing
+        case .bottomLeft: .bottomLeading
+        case .bottom: .bottom
+        case .bottomRight: .bottomTrailing
+        }
     }
 
     private func position(of handle: ResizeHandle, in size: CGSize) -> CGPoint {
         let midX = size.width / 2, midY = size.height / 2
-        let maxX = size.width - 6, maxY = size.height - 6
+        let maxX = size.width - 7, maxY = size.height - 7
         switch handle {
-        case .topLeft: return CGPoint(x: 6, y: 6)
-        case .top: return CGPoint(x: midX, y: 6)
-        case .topRight: return CGPoint(x: maxX, y: 6)
-        case .left: return CGPoint(x: 6, y: midY)
+        case .topLeft: return CGPoint(x: 7, y: 7)
+        case .top: return CGPoint(x: midX, y: 7)
+        case .topRight: return CGPoint(x: maxX, y: 7)
+        case .left: return CGPoint(x: 7, y: midY)
         case .right: return CGPoint(x: maxX, y: midY)
-        case .bottomLeft: return CGPoint(x: 6, y: maxY)
+        case .bottomLeft: return CGPoint(x: 7, y: maxY)
         case .bottom: return CGPoint(x: midX, y: maxY)
         case .bottomRight: return CGPoint(x: maxX, y: maxY)
         }
