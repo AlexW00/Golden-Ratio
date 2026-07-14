@@ -46,7 +46,11 @@ Or headless: `xcodebuild -scheme "Golden Ratio" -configuration Release build`
 
 ## License
 
-[MIT](LICENSE)
+Copyright © 2026 Alexander Weichart. **All rights reserved.**
+
+The source is public for reference only. It is **not** open source — you may not
+copy, modify, redistribute, or publish it (including on the App Store) without
+written permission. See [LICENSE](LICENSE).
 
 ## Credits
 
