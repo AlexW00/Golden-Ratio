@@ -45,8 +45,19 @@ final class OverlayState {
     /// is never stranded with an untouchable overlay.
     var isLocked: Bool = false
 
+    /// Transient bypass while the configured modifier is held: the locked
+    /// overlay becomes interactive without changing `isLocked`. Never persisted.
+    var isTemporarilyUnlocked: Bool = false
+
+    /// Which held modifier engages the temporary unlock. Stored under its own
+    /// defaults key so the `overlayState.v1` snapshot format stays untouched.
+    var tempUnlockModifier: TempUnlockModifier = .option {
+        didSet { defaults.set(tempUnlockModifier.rawValue, forKey: Self.tempUnlockKey) }
+    }
+
     private let defaults: UserDefaults
     private static let key = "overlayState.v1"
+    private static let tempUnlockKey = "tempUnlockModifier.v1"
 
     private struct Snapshot: Codable {
         var type: OverlayType
@@ -68,6 +79,23 @@ final class OverlayState {
             color = .gold
             orientation = .identity
             isVisible = false
+        }
+        if let raw = defaults.string(forKey: Self.tempUnlockKey),
+           let modifier = TempUnlockModifier(rawValue: raw) {
+            tempUnlockModifier = modifier
+        }
+    }
+
+    /// Global-shortcut semantics: first press shows the overlay, subsequent
+    /// presses advance to the next guide type (wrapping).
+    func cycleGuide() {
+        guard isVisible else {
+            isVisible = true
+            return
+        }
+        let all = OverlayType.allCases
+        if let index = all.firstIndex(of: type) {
+            type = all[(index + 1) % all.count]
         }
     }
 

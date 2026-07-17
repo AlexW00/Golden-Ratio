@@ -13,7 +13,13 @@ final class WelcomeWindowController {
     private let defaults: UserDefaults
     private var window: NSWindow?
 
-    init(defaults: UserDefaults = .standard) {
+    /// Overlay state shown in the settings sections (temp-unlock modifier).
+    /// Optional so pure decision-logic tests can construct the controller
+    /// without building app state; `show()` requires it in practice.
+    private let state: OverlayState?
+
+    init(state: OverlayState? = nil, defaults: UserDefaults = .standard) {
+        self.state = state
         self.defaults = defaults
     }
 
@@ -27,9 +33,22 @@ final class WelcomeWindowController {
         return true
     }
 
-    /// Shows the welcome window only on the first launch of a fresh install.
-    func showIfFirstLaunch() {
-        if Self.consumeFirstLaunch(defaults: defaults) {
+    /// UserDefaults key for the "Show this window at launch" preference
+    /// (default off; the first launch always shows once regardless).
+    nonisolated static let showAtLaunchKey = "showWelcomeAtLaunch.v1"
+
+    /// Launch decision: the first launch of a fresh install always shows once
+    /// (consuming the flag); afterwards the preference decides.
+    nonisolated static func shouldShowAtLaunch(defaults: UserDefaults) -> Bool {
+        // Evaluate first-launch unconditionally so the flag is consumed even
+        // when the preference is on.
+        let firstLaunch = consumeFirstLaunch(defaults: defaults)
+        return firstLaunch || defaults.bool(forKey: showAtLaunchKey)
+    }
+
+    /// Shows the welcome & settings window when the launch decision says so.
+    func showIfNeeded() {
+        if Self.shouldShowAtLaunch(defaults: defaults) {
             show()
         }
     }
@@ -45,9 +64,12 @@ final class WelcomeWindowController {
     }
 
     private func makeWindow() -> NSWindow {
-        let hosting = NSHostingController(rootView: WelcomeView(dismiss: { [weak self] in
-            self?.window?.close()
-        }))
+        let hosting = NSHostingController(rootView: WelcomeView(
+            state: state ?? OverlayState(defaults: defaults),
+            dismiss: { [weak self] in
+                self?.window?.close()
+            }
+        ))
         let window = NSWindow(contentViewController: hosting)
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true

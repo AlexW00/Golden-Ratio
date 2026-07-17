@@ -1,4 +1,11 @@
 import SwiftUI
+import KeyboardShortcuts
+
+/// Content of a transient HUD badge (currently the lock hint).
+private struct OverlayBadge: Equatable {
+    var symbol: String
+    var text: String
+}
 
 struct OverlayContentView: View {
     let state: OverlayState
@@ -7,11 +14,13 @@ struct OverlayContentView: View {
     @State private var hovering = false
     @State private var hoveredHandle: ResizeHandle?
     @State private var dragStart: (mouse: CGPoint, frame: CGRect)?
-    @State private var showLockBadge = false
+    @State private var badge: OverlayBadge?
     @State private var badgeTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var chromeVisible: Bool { hovering && !state.isLocked }
+    private var chromeVisible: Bool {
+        hovering && (!state.isLocked || state.isTemporarilyUnlocked)
+    }
 
     /// Inset from the window edge at which the guide, dashed frame, and handles
     /// render. Gives corner/edge handles room to sit exactly on the frame.
@@ -27,7 +36,7 @@ struct OverlayContentView: View {
                     value: chromeVisible
                 )
                 .allowsHitTesting(chromeVisible)
-            if showLockBadge { lockBadge }
+            if let badge { badgeView(badge) }
         }
         .contentShape(Rectangle())
         // Grab cursor only while the chrome is showing; default when the
@@ -39,17 +48,10 @@ struct OverlayContentView: View {
             guard locked else { return }
             hovering = false
             hoveredHandle = nil
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
-                showLockBadge = true
-            }
-            badgeTask?.cancel()
-            badgeTask = Task {
-                try? await Task.sleep(for: .seconds(1.4))
-                if Task.isCancelled { return }
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
-                    showLockBadge = false
-                }
-            }
+            let text = state.tempUnlockModifier.keySymbol
+                .map { "Locked — hold \($0) to adjust" }
+                ?? "Locked — unlock from the menu bar"
+            showBadge(OverlayBadge(symbol: "lock.fill", text: text))
         }
         .ignoresSafeArea()
     }
@@ -102,19 +104,31 @@ struct OverlayContentView: View {
 
     private var controlStrip: some View {
         HStack(spacing: 8) {
-            ChromeStripButton("trapezoid.and.line.vertical", "Flip Horizontal") {
+            ChromeStripButton("trapezoid.and.line.vertical",
+                              helpText("Flip Horizontal", shortcut: .flipHorizontal)) {
                 state.orientation.flipHorizontal()
             }
-            ChromeStripButton("trapezoid.and.line.horizontal", "Flip Vertical") {
+            ChromeStripButton("trapezoid.and.line.horizontal",
+                              helpText("Flip Vertical", shortcut: .flipVertical)) {
                 state.orientation.flipVertical()
             }
-            ChromeStripButton("rotate.right", "Rotate 90°") {
+            ChromeStripButton("rotate.right",
+                              helpText("Rotate 90°", shortcut: .rotateGuide)) {
                 state.orientation.rotate90()
             }
-            ChromeStripButton("lock", "Lock (click-through)") {
-                state.isLocked = true
+            // During a temporary unlock the overlay is still locked; the same
+            // slot then offers a permanent unlock.
+            ChromeStripButton(
+                state.isLocked ? "lock.open" : "lock",
+                helpText(
+                    state.isLocked ? "Unlock Overlay" : "Lock (click-through)",
+                    shortcut: .toggleLock
+                )
+            ) {
+                state.isLocked.toggle()
             }
-            ChromeStripButton("xmark", "Close Overlay") {
+            ChromeStripButton("xmark",
+                              helpText("Close Overlay", shortcut: .toggleOverlay)) {
                 state.isVisible = false
             }
         }
@@ -123,8 +137,24 @@ struct OverlayContentView: View {
         .hudCapsule()
     }
 
-    private var lockBadge: some View {
-        Label("Locked — unlock from the menu bar", systemImage: "lock.fill")
+    /// Shows a transient HUD badge, replacing any badge currently on screen
+    /// and restarting the auto-dismiss timer.
+    private func showBadge(_ new: OverlayBadge) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
+            badge = new
+        }
+        badgeTask?.cancel()
+        badgeTask = Task {
+            try? await Task.sleep(for: .seconds(1.4))
+            if Task.isCancelled { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                badge = nil
+            }
+        }
+    }
+
+    private func badgeView(_ badge: OverlayBadge) -> some View {
+        Label(badge.text, systemImage: badge.symbol)
             .font(.callout)
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
@@ -254,8 +284,13 @@ struct OverlayContentView: View {
                 guard let start = beginDragIfNeeded() else { return }
                 // Sample modifiers live so pressing/releasing mid-drag takes
                 // effect immediately (frame math is recomputed from `initial`).
+                // A modifier held to sustain the temporary unlock is consumed —
+                // it must not double as a resize option (⌥ = from-center).
                 var options: OverlayFrameMath.ResizeOptions = []
-                let mods = NSEvent.modifierFlags
+                var mods = NSEvent.modifierFlags
+                if state.isTemporarilyUnlocked {
+                    mods = state.tempUnlockModifier.consumed(from: mods)
+                }
                 if mods.contains(.shift) { options.insert(.preserveAspect) }
                 if mods.contains(.option) { options.insert(.fromCenter) }
                 controller.resize(

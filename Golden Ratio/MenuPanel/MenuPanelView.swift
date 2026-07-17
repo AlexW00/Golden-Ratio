@@ -1,7 +1,11 @@
 import SwiftUI
+import AppKit
+import KeyboardShortcuts
 
 struct MenuPanelView: View {
     let state: OverlayState
+    /// Opens the welcome & settings window (owned by the app model).
+    let openSettings: () -> Void
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
 
@@ -80,25 +84,34 @@ struct MenuPanelView: View {
 
     private var controlRow: some View {
         HStack(spacing: 4) {
-            controlButton("trapezoid.and.line.vertical", help: "Flip Horizontal",
+            controlButton("trapezoid.and.line.vertical",
+                          help: helpText("Flip Horizontal", shortcut: .flipHorizontal),
                           disabled: !state.isVisible || state.isLocked) {
                 state.orientation.flipHorizontal()
             }
-            controlButton("trapezoid.and.line.horizontal", help: "Flip Vertical",
+            controlButton("trapezoid.and.line.horizontal",
+                          help: helpText("Flip Vertical", shortcut: .flipVertical),
                           disabled: !state.isVisible || state.isLocked) {
                 state.orientation.flipVertical()
             }
-            controlButton("rotate.right", help: "Rotate 90°",
+            controlButton("rotate.right",
+                          help: helpText("Rotate 90°", shortcut: .rotateGuide),
                           disabled: !state.isVisible || state.isLocked) {
                 state.orientation.rotate90()
             }
             controlButton(state.isLocked ? "lock.fill" : "lock",
-                          help: state.isLocked ? "Unlock Overlay" : "Lock (click-through)",
+                          help: helpText(
+                              state.isLocked ? "Unlock Overlay" : "Lock (click-through)",
+                              shortcut: .toggleLock
+                          ),
                           accessibility: state.isLocked ? "Unlock Overlay" : "Lock Overlay",
                           disabled: !state.isVisible) {
                 state.isLocked.toggle()
             }
             Spacer()
+            controlButton("gearshape", help: "Settings") {
+                openSettings()
+            }
             controlButton("power", help: "Quit Golden Ratio") {
                 NSApplication.shared.terminate(nil)
             }

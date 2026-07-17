@@ -54,6 +54,31 @@ struct OverlayStateTests {
         }
     }
 
+    @Test func cycleGuideAdvancesAndWraps() {
+        withFreshDefaults { d in
+            let s = OverlayState(defaults: d)
+            s.isVisible = true
+            s.type = .thirds
+            s.cycleGuide()
+            #expect(s.type == .phiGrid)
+            // Wrap: from the last case back to the first.
+            s.type = .centerCross
+            s.cycleGuide()
+            #expect(s.type == .thirds)
+            #expect(s.isVisible == true)
+        }
+    }
+
+    @Test func cycleGuideWhenHiddenShowsWithoutAdvancing() {
+        withFreshDefaults { d in
+            let s = OverlayState(defaults: d)
+            s.type = .diagonals
+            s.cycleGuide()
+            #expect(s.isVisible == true)
+            #expect(s.type == .diagonals)  // first press just shows
+        }
+    }
+
     @Test func toggleActivatesSwitchesAndHides() {
         withFreshDefaults { d in
             let s = OverlayState(defaults: d)

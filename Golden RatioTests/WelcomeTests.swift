@@ -21,4 +21,26 @@ struct WelcomeTests {
             #expect(d.bool(forKey: WelcomeWindowController.hasShownWelcomeKey) == true)
         }
     }
+
+    // MARK: - "Show this window at launch" decision
+
+    @Test func firstLaunchAlwaysShows() {
+        withFreshDefaults { d in
+            // Preference defaults to off, but the very first launch shows once.
+            #expect(WelcomeWindowController.shouldShowAtLaunch(defaults: d) == true)
+        }
+    }
+
+    @Test func laterLaunchesRespectThePreference() {
+        withFreshDefaults { d in
+            _ = WelcomeWindowController.shouldShowAtLaunch(defaults: d)  // consume first launch
+            // Preference off (default): stay hidden.
+            #expect(WelcomeWindowController.shouldShowAtLaunch(defaults: d) == false)
+            // Preference on: show every launch.
+            d.set(true, forKey: WelcomeWindowController.showAtLaunchKey)
+            #expect(WelcomeWindowController.shouldShowAtLaunch(defaults: d) == true)
+            d.set(false, forKey: WelcomeWindowController.showAtLaunchKey)
+            #expect(WelcomeWindowController.shouldShowAtLaunch(defaults: d) == false)
+        }
+    }
 }

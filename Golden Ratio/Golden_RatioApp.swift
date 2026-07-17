@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Observation
+import KeyboardShortcuts
 
 @MainActor
 @Observable
@@ -18,8 +19,48 @@ final class AppModel {
         let state = OverlayState()
         overlayState = state
         windowController = OverlayWindowController(state: state)
-        welcomeController = WelcomeWindowController()
+        welcomeController = WelcomeWindowController(state: state)
         Self.shared = self
+        observeShortcuts()
+    }
+
+    /// One listener task per global shortcut, alive for the app's lifetime
+    /// (AppModel is never deallocated). Guards mirror the menu panel's
+    /// disabled rules so shortcuts can't do what the buttons can't.
+    private func observeShortcuts() {
+        listen(to: .toggleOverlay) { state in
+            state.isVisible.toggle()
+        }
+        listen(to: .cycleGuide) { state in
+            state.cycleGuide()
+        }
+        listen(to: .flipHorizontal) { state in
+            guard state.isVisible, !state.isLocked else { return }
+            state.orientation.flipHorizontal()
+        }
+        listen(to: .flipVertical) { state in
+            guard state.isVisible, !state.isLocked else { return }
+            state.orientation.flipVertical()
+        }
+        listen(to: .rotateGuide) { state in
+            guard state.isVisible, !state.isLocked else { return }
+            state.orientation.rotate90()
+        }
+        listen(to: .toggleLock) { state in
+            guard state.isVisible else { return }
+            state.isLocked.toggle()
+        }
+    }
+
+    private func listen(
+        to name: KeyboardShortcuts.Name,
+        action: @escaping @MainActor (OverlayState) -> Void
+    ) {
+        Task { [overlayState] in
+            for await event in KeyboardShortcuts.events(for: name) where event == .keyUp {
+                action(overlayState)
+            }
+        }
     }
 }
 
@@ -29,7 +70,7 @@ final class AppModel {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        AppModel.shared?.welcomeController.showIfFirstLaunch()
+        AppModel.shared?.welcomeController.showIfNeeded()
     }
 
     /// Fires when the user activates the app from Finder/Dock while it's already
@@ -55,7 +96,10 @@ struct Golden_RatioApp: App {
 
     var body: some Scene {
         MenuBarExtra("Golden Ratio", systemImage: "hurricane") {
-            MenuPanelView(state: model.overlayState)
+            MenuPanelView(
+                state: model.overlayState,
+                openSettings: { [model] in model.welcomeController.show() }
+            )
         }
         .menuBarExtraStyle(.window)
     }

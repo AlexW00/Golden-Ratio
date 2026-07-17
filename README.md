@@ -28,10 +28,25 @@ The overlay itself:
 | Resize, keeping aspect ratio | Hold **⇧ Shift** while dragging a handle |
 | Resize from center | Hold **⌥ Option** while dragging a handle |
 | Rotate 90° / flip | Buttons on the overlay (hover) or in the menu bar panel |
-| Click-through mode | **Lock** — clicks pass through to the app beneath; unlock from the menu bar |
+| Click-through mode | **Lock** — clicks pass through to the app beneath |
+| Adjust while locked | Hold **⌥ Option** — move/resize without unlocking; release to snap back to click-through (modifier configurable in Settings) |
 | Close | ✕ in the overlay's toolbar, or the active tile in the menu |
 
 The overlay floats above every window (full-screen apps included), never steals focus from the app you're working in, and remembers its position, guide, color, and orientation across launches. No permissions required.
+
+## Keyboard shortcuts
+
+Every overlay action has a global shortcut that works while any app is in front:
+
+| Action | Default |
+| --- | --- |
+| Show / hide overlay | **⌃⌥G** |
+| Cycle guide | **⌃⌥C** |
+| Flip horizontal / vertical | **⌃⌥H** / **⌃⌥V** |
+| Rotate 90° | **⌃⌥R** |
+| Lock / unlock | **⌃⌥L** |
+
+Remap (or clear) any of them in **Settings** — the gear button in the menu bar panel. Settings also has the hold-to-adjust modifier, **Open at login**, and whether the welcome window shows at launch.
 
 ## Building
 
